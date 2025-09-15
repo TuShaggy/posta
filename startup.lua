@@ -475,5 +475,7 @@ function update()
         action = "Temp > " .. maxTemperature
         emergencyTemp = true
       end
-    end
+    
 parallel.waitForAny(buttons, update)
+    end
+  end
