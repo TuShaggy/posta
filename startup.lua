@@ -29,7 +29,8 @@ local inputfluxgate
 local function chooseFluxGate(prompt, exclude)
   local gates = {}
   for _, name in pairs(peripheral.getNames()) do
-    if peripheral.getType(name) == "flux_gate" and name ~= exclude then
+    local pType = peripheral.getType(name)
+    if name ~= exclude and (pType == "flux_gate" or pType == "flow_gate" or name:match("^flow_gates_%d+")) then
       table.insert(gates, name)
     end
   end
@@ -285,7 +286,8 @@ function update()
     f.draw_text_lr(mon, 2, 17, 1, "Fuel ", fuelPercent .. "%", colors.white, fuelColor, colors.black)
     f.progress_bar(mon, 2, 18, mon.X-2, fuelPercent, 100, fuelColor, colors.gray)
 
-    f.draw_text_lr(mon, 2, 19, 1, "Action ", action, colors.gray, colors.gray, colors.black)
+    f.draw_text_lr(mon, 2, 19, 1, "Action ", action, colors.gray, colors.gray, colors black)
+
     -- actual reactor interaction
     --
     if emergencyCharge == true then
