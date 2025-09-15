@@ -25,6 +25,8 @@ local mon, monitor
 local reactor
 local fluxgate
 local inputfluxgate
+local fluxgate, fluxgateSide
+local inputfluxgate, inputfluxgateSide
 
 -- allow user to pick which flux gates to use
 local function chooseFluxGate(prompt, exclude)
@@ -66,9 +68,14 @@ local emergencyTemp = false
 monitor = f.periphSearch("monitor")
 inputfluxgate = f.periphSearch("flux_gate")
 fluxgate = peripheral.wrap(fluxgateSide)
+reactor = f.periphSearch("draconic_reactor")
+if reactor == null then
+  reactor = f.periphSearch("reactor")
+end
 fluxgate, fluxgateSide = chooseFluxGate("Select output flux gate:")
 inputfluxgate = chooseFluxGate("Select input flux gate:", fluxgateSide)
 reactor = peripheral.wrap(reactorSide)
+inputfluxgate, inputfluxgateSide = chooseFluxGate("Select input flux gate:", fluxgateSide)
 
 if monitor == null then
         error("No valid monitor was found")
@@ -83,7 +90,11 @@ if reactor == null then
 end
 
 if inputfluxgate == null then
+if fluxgate == null then
         error("No valid flux gate was found")
+end
+
+if inputfluxgate == null then
         error("No valid flux gate was found")
 end
 
@@ -108,7 +119,7 @@ function load_config()
   autoInputGate = tonumber(sr.readLine())
   curInputGate = tonumber(sr.readLine())
   sr.close()
-end
+
 
 
 -- 1st time? save our settings, if not, load our settings
