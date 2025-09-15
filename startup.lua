@@ -5,7 +5,9 @@ local maxTemperature = 8000
 local safeTemperature = 3000
 local lowestFieldPercent = 15
 
-local autoBalanceGain = 0.6 -- higher responds faster when field deviates from the target
+local autoBalanceGain = 0.6 -- proportional gain for field error correction (0 disables)
+local autoIntegralGain = 0.2 -- integral gain scales how quickly long-term error is corrected
+local autoIntegralLimit = 1000000 -- absolute cap for the accumulated integral term (0 disables)
 local autoStepMin = 1000 -- rf/t increase allowed even when drain is tiny
 local autoStepMax = 250000 -- rf/t maximum increase per update to avoid spikes
 local autoStepDownMax = 0 -- rf/t maximum decrease per update (0 disables the cap)
@@ -20,6 +22,7 @@ local version = "0.25"
 local autoInputGate = 1
 local curInputGate = 222000
 local lastAutoFlow = curInputGate
+local autoIntegral = 0
 
 local mon, monitor, monX, monY
 
@@ -133,7 +136,7 @@ function buttons()
     -- button handler
     local event, side, xPos, yPos = os.pullEvent("monitor_touch")
 
-    -- output gate controls
+  -- output gate controls
     -- 2-4 = -1000, 6-9 = -10000, 10-12,8 = -100000
     -- 17-19 = +1000, 21-23 = +10000, 25-27 = +100000
     if yPos == 8 then
@@ -157,9 +160,9 @@ function buttons()
       if xPos >= 14 and xPos <= 15 then
         if autoInputGate == 1 then
           autoInputGate = 0
+          autoIntegral = 0
           inputfluxgate.setSignalLowFlow(curInputGate)
           lastAutoFlow = curInputGate
-          autoIntegral = 0
         else
           autoInputGate = 1
           autoIntegral = 0
@@ -189,16 +192,9 @@ function buttons()
     end
   end
 
-end
-
 function drawButtons(y)
 
-  -- 2-4 = -1000, 6-9 = -10000, 10-12,8 = -100000
-  -- 17-19 = +1000, 21-23 = +10000, 25-27 = +100000
-
-  f.draw_text(mon, 2, y, " < ", colors.white, colors.gray)
-  
-  f.draw_text(mon, 6, y, " <<", colors.white, colors.gray)
+f.draw_text(mon, 6, y, " <<", colors.white, colors.gray)
   f.draw_text(mon, 10, y, "<<<", colors.white, colors.gray)
 
   f.draw_text(mon, 17, y, ">>>", colors.white, colors.gray)
@@ -479,11 +475,5 @@ function update()
         action = "Temp > " .. maxTemperature
         emergencyTemp = true
       end
-
-      mon.monitor.setVisible(true)
-      mon.monitor.redraw()
-      sleep(0.3)
-    end
-  end
 
 parallel.waitForAny(buttons, update)
