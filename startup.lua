@@ -97,6 +97,7 @@ end
 if inputfluxgate == null then
         error("No valid flux gate was found")
 end
+end
 
 monX, monY = monitor.getSize()
 mon = {}
@@ -119,6 +120,7 @@ function load_config()
   autoInputGate = tonumber(sr.readLine())
   curInputGate = tonumber(sr.readLine())
   sr.close()
+end
 
 
 
