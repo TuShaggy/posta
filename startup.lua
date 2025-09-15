@@ -30,7 +30,12 @@ local function chooseFluxGate(prompt, exclude)
   local gates = {}
   for _, name in pairs(peripheral.getNames()) do
     local pType = peripheral.getType(name)
-    if name ~= exclude and (pType == "flux_gate" or pType == "flow_gate" or name:match("^flow_gates_%d+")) then
+    if name ~= exclude and (
+      pType == "flux_gate" or
+      pType == "flow_gate" or
+      name:match("^flow_gate_%d+") or
+      name:match("^flow_gates_%d+")
+    ) then
       table.insert(gates, name)
     end
   end
@@ -48,6 +53,7 @@ local function chooseFluxGate(prompt, exclude)
   until choice ~= null and gates[choice] ~= null
   return peripheral.wrap(gates[choice]), gates[choice]
 end
+
 
 -- reactor information
 local ri
