@@ -54,7 +54,6 @@ local function chooseFluxGate(prompt, exclude)
   return peripheral.wrap(gates[choice]), gates[choice]
 end
 
-
 -- reactor information
 local ri
 
@@ -292,8 +291,7 @@ function update()
     f.draw_text_lr(mon, 2, 17, 1, "Fuel ", fuelPercent .. "%", colors.white, fuelColor, colors.black)
     f.progress_bar(mon, 2, 18, mon.X-2, fuelPercent, 100, fuelColor, colors.gray)
 
-    f.draw_text_lr(mon, 2, 19, 1, "Action ", action, colors.gray, colors.gray, colors black)
-
+    f.draw_text_lr(mon, 2, 19, 1, "Action", action, colors.gray, colors.gray, colors.black)
     -- actual reactor interaction
     --
     if emergencyCharge == true then
