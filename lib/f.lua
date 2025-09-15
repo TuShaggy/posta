@@ -71,9 +71,23 @@ end
 
 
 function clear(mon)
-  term.clear()
-  term.setCursorPos(1,1)
+ 
   mon.monitor.setBackgroundColor(colors.black)
   mon.monitor.clear()
   mon.monitor.setCursorPos(1,1)
+end
+-- set text scale so the monitor is at least minX by minY, then return centered window
+function init_monitor(periph, minX, minY)
+  local scale = 5
+  local w, h
+  while scale >= 0.5 do
+    periph.setTextScale(scale)
+    w, h = periph.getSize()
+    if w >= minX and h >= minY then break end
+    scale = scale - 0.5
+  end
+  local xOff = math.floor((w - minX) / 2)
+  local yOff = math.floor((h - minY) / 2)
+  local win = window.create(periph, xOff + 1, yOff + 1, minX, minY)
+  return {monitor = win, X = minX, Y = minY}
 end
