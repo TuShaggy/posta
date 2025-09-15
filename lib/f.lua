@@ -1,4 +1,3 @@
-
 -- peripheral identification
 --
 function periphSearch(type)
@@ -9,14 +8,14 @@ function periphSearch(type)
          return peripheral.wrap(name)
       end
    end
-   return null
+   return nil
 end
 
 -- formatting
 
 function format_int(number)
 
-	if number == nil then number = 0 end
+        if number == nil then number = 0 end
 
   local i, j, minus, int, fraction = tostring(number):find('([-]?)(%d+)([.]?%d*)')
   -- reverse the int-string and append a comma to all blocks of 3 digits
@@ -45,8 +44,8 @@ function draw_text_right(mon, offset, y, text, text_color, bg_color)
 end
 
 function draw_text_lr(mon, x, y, offset, text1, text2, text1_color, text2_color, bg_color)
-	draw_text(mon, x, y, text1, text1_color, bg_color)
-	draw_text_right(mon, offset, y, text2, text2_color, bg_color)
+        draw_text(mon, x, y, text1, text1_color, bg_color)
+        draw_text_right(mon, offset, y, text2, text2_color, bg_color)
 end
 
 --draw line on computer terminal
@@ -71,7 +70,7 @@ end
 
 
 function clear(mon)
- 
+
   mon.monitor.setBackgroundColor(colors.black)
   mon.monitor.clear()
   mon.monitor.setCursorPos(1,1)
