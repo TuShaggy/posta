@@ -18,7 +18,7 @@ local autoInputGate = 1
 local curInputGate = 222000
 
 -- monitor
-local mon, monitor, monX, monY
+local mon, monitor
 
 -- peripherals
 local reactor
@@ -80,12 +80,10 @@ if reactor == null then
 end
 
 if inputfluxgate == null then
-        error("No valid flux gate was found")
+         error("No valid flux gate was found")
 end
 
-monX, monY = monitor.getSize()
-mon = {}
-mon.monitor,mon.X, mon.Y = monitor, monX, monY
+mon = f.init_monitor(monitor, 29, 19)
 
 --write settings to config file
 function save_config()
@@ -105,29 +103,13 @@ function load_config()
   sr.close()
 end
 
-
--- 1st time? save our settings, if not, load our settings
 if fs.exists("config.txt") == false then
   save_config()
 else
   load_config()
 end
 
-print("Set initial output gate rf/t (blank to keep)")
-local initOut = read()
-initOut = tonumber(initOut)
-if initOut ~= null then
-  fluxgate.setSignalLowFlow(initOut)
-end
-print("Set initial input gate rf/t (blank to keep)")
-local initIn = read()
-initIn = tonumber(initIn)
-if initIn ~= null then
-  curInputGate = initIn
-  inputfluxgate.setSignalLowFlow(curInputGate)
-  save_config()
-end
-
+inputfluxgate.setSignalLowFlow(curInputGate)
 
 function buttons()
 
@@ -218,11 +200,6 @@ function update()
       error("reactor has an invalid setup")
     end
 
-    for k, v in pairs (ri) do
-      print(k .. ": " .. tostring(v))
-    end
-    print("Output Gate: ", fluxgate.getSignalLowFlow())
-    print("Input Gate: ", inputfluxgate.getSignalLowFlow())
 
     -- monitor output
 
@@ -319,14 +296,14 @@ function update()
     -- are we on? regulate the input fludgate to our target field strength
     -- or set it to our saved setting since we are on manual
     if ri.status == "online" then
-      if autoInputGate == 1 then
-        fluxval = ri.fieldDrainRate / (1 - (targetStrength/100) )
-        print("Target Gate: ".. fluxval)
-        inputfluxgate.setSignalLowFlow(fluxval)
-      else
+        if autoInputGate == 1 then
+          fluxval = ri.fieldDrainRate / (1 - (targetStrength/100) )
+          inputfluxgate.setSignalLowFlow(fluxval)
+        else
+          inputfluxgate.setSignalLowFlow(curInputGate)
+        end
         inputfluxgate.setSignalLowFlow(curInputGate)
       end
-    end
 
     -- safeguards
     --
