@@ -145,7 +145,7 @@ function buttons()
         cFlow = cFlow+1000
       end
       fluxgate.setSignalLowFlow(cFlow)
-@@ -139,173 +166,175 @@ function buttons()
+
       else
         autoInputGate = 1
       end
