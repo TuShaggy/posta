@@ -191,7 +191,8 @@ function buttons()
       end
     end
   end
-end
+
+  end
 
   function drawButtons(y)
 
@@ -480,4 +481,5 @@ function update()
   end
 end
 
+parallel.waitForAny(buttons, update)
 parallel.waitForAny(buttons, update)
