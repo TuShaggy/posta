@@ -192,15 +192,17 @@ function buttons()
     end
   end
 
-function drawButtons(y)
+nd
 
-f.draw_text(mon, 6, y, " <<", colors.white, colors.gray)
-  f.draw_text(mon, 10, y, "<<<", colors.white, colors.gray)
+  function drawButtons(y)
 
-  f.draw_text(mon, 17, y, ">>>", colors.white, colors.gray)
-  f.draw_text(mon, 21, y, ">> ", colors.white, colors.gray)
-  f.draw_text(mon, 25, y, " > ", colors.white, colors.gray)
-end
+    f.draw_text(mon, 6, y, " <<", colors.white, colors.gray)
+    f.draw_text(mon, 10, y, "<<<", colors.white, colors.gray)
+
+    f.draw_text(mon, 17, y, ">>>", colors.white, colors.gray)
+    f.draw_text(mon, 21, y, ">> ", colors.white, colors.gray)
+    f.draw_text(mon, 25, y, " > ", colors.white, colors.gray)
+  end
 
 
 
@@ -474,8 +476,9 @@ function update()
         reactor.stopReactor()
         action = "Temp > " .. maxTemperature
         emergencyTemp = true
-      end
-    
-parallel.waitForAny(buttons, update)
+     end
     end
   end
+end
+
+parallel.waitForAny(buttons, update)
