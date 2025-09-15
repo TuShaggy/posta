@@ -482,4 +482,3 @@ function update()
 end
 
 parallel.waitForAny(buttons, update)
-parallel.waitForAny(buttons, update)
