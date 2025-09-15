@@ -121,7 +121,7 @@ function buttons()
 
   while true do
     -- button handler
-    event, side, xPos, yPos = os.pullEvent("monitor_touch")
+    local event, side, xPos, yPos = os.pullEvent("monitor_touch")
 
     -- output gate controls
     -- 2-4 = -1000, 6-9 = -10000, 10-12,8 = -100000
@@ -129,23 +129,49 @@ function buttons()
     if yPos == 8 then
       local cFlow = fluxgate.getSignalLowFlow()
       if xPos >= 2 and xPos <= 4 then
-        cFlow = cFlow-1000
+        cFlow = cFlow - 1000
       elseif xPos >= 6 and xPos <= 9 then
-        cFlow = cFlow-10000
+        cFlow = cFlow - 10000
       elseif xPos >= 10 and xPos <= 12 then
-        cFlow = cFlow-100000
+        cFlow = cFlow - 100000
       elseif xPos >= 17 and xPos <= 19 then
-        cFlow = cFlow+100000
+        cFlow = cFlow + 100000
       elseif xPos >= 21 and xPos <= 23 then
-        cFlow = cFlow+10000
+        cFlow = cFlow + 10000
       elseif xPos >= 25 and xPos <= 27 then
-        cFlow = cFlow+1000
+        cFlow = cFlow + 1000
       end
       fluxgate.setSignalLowFlow(cFlow)
-    else
-      autoInputGate = 1
+
+    elseif yPos == 10 then
+      if xPos >= 14 and xPos <= 15 then
+        if autoInputGate == 1 then
+          autoInputGate = 0
+          inputfluxgate.setSignalLowFlow(curInputGate)
+        else
+          autoInputGate = 1
+        end
+        save_config()
+      elseif autoInputGate == 0 then
+        local cFlow = curInputGate
+        if xPos >= 2 and xPos <= 4 then
+          cFlow = cFlow - 1000
+        elseif xPos >= 6 and xPos <= 9 then
+          cFlow = cFlow - 10000
+        elseif xPos >= 10 and xPos <= 12 then
+          cFlow = cFlow - 100000
+        elseif xPos >= 17 and xPos <= 19 then
+          cFlow = cFlow + 100000
+        elseif xPos >= 21 and xPos <= 23 then
+          cFlow = cFlow + 10000
+        elseif xPos >= 25 and xPos <= 27 then
+          cFlow = cFlow + 1000
+        end
+        curInputGate = cFlow
+        inputfluxgate.setSignalLowFlow(curInputGate)
+        save_config()
+      end
     end
-    save_config()
   end
 
 end
@@ -259,7 +285,7 @@ function update()
 
       fuelColor = colors.red
 
-      if fuelPercent >= 70 then fuelColor = colors.green end
+      if fuelPercent >= 70 then fuelColor = colors green end
       if fuelPercent < 70 and fuelPercent > 30 then fuelColor = colors.orange end
 
       clear_line(17)
@@ -296,17 +322,11 @@ function update()
       -- or set it to our saved setting since we are on manual
       if ri.status == "online" then
         if autoInputGate == 1 then
-          fluxval = ri.fieldDrainRate / (1 - (targetStrength/100) )
-          print("Target Gate: ".. fluxval)
+          local fluxval = ri.fieldDrainRate / (1 - (targetStrength / 100))
+          print("Target Gate: " .. fluxval)
           inputfluxgate.setSignalLowFlow(fluxval)
         else
           inputfluxgate.setSignalLowFlow(curInputGate)
-          if autoInputGate == 1 then
-            fluxval = ri.fieldDrainRate / (1 - (targetStrength/100) )
-            inputfluxgate.setSignalLowFlow(fluxval)
-          else
-            inputfluxgate.setSignalLowFlow(curInputGate)
-          end
         end
       end
 
