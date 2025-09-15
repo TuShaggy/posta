@@ -192,7 +192,7 @@ function buttons()
     end
   end
 
-nd
+end
 
   function drawButtons(y)
 
