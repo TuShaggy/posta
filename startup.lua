@@ -15,9 +15,7 @@ local version = "0.25"
 local autoInputGate = 1
 local curInputGate = 222000
 
--- monitor
 local mon, monitor, monX, monY
-local mon, monitor
 
 -- peripherals
 local reactor
@@ -39,7 +37,7 @@ local function chooseFluxGate(prompt, exclude)
     end
   end
   if #gates == 0 then
-    return null, null
+    return nil, nil
   end
   print(prompt)
   for i, n in ipairs(gates) do
@@ -49,7 +47,7 @@ local function chooseFluxGate(prompt, exclude)
   repeat
     write("> ")
     choice = tonumber(read())
-  until choice ~= null and gates[choice] ~= null
+  until choice ~= nil and gates[choice] ~= nil
   return peripheral.wrap(gates[choice]), gates[choice]
 end
 
@@ -63,25 +61,25 @@ local emergencyTemp = false
 
 monitor = f.periphSearch("monitor")
 reactor = f.periphSearch("draconic_reactor")
-if reactor == null then
+if reactor == nil then
   reactor = f.periphSearch("reactor")
 end
 fluxgate, fluxgateSide = chooseFluxGate("Select output flux gate:")
 inputfluxgate, inputfluxgateSide = chooseFluxGate("Select input flux gate:", fluxgateSide)
 
-if monitor == null then
+if monitor == nil then
         error("No valid monitor was found")
 end
 
-if reactor == null then
+if reactor == nil then
         error("No valid reactor was found")
 end
 
-if fluxgate == null then
+if fluxgate == nil then
         error("No valid flux gate was found")
 end
 
-if inputfluxgate == null then
+if inputfluxgate == nil then
         error("No valid flux gate was found")
 end
 
@@ -169,13 +167,13 @@ end
 
 
 function update()
+  f.clear(mon)
   while true do
     local function clear_line(y)
       f.draw_line(mon, 1, y, mon.X, colors.black)
     end
 
-    f.clear(mon)
-    drawButtons(8)
+    mon.monitor.setVisible(false)
 
       ri = reactor.getReactorInfo()
 
@@ -268,7 +266,6 @@ function update()
       f.draw_text_lr(mon, 2, 17, 1, "Fuel ", fuelPercent .. "%", colors.white, fuelColor, colors.black)
       f.progress_bar(mon, 2, 18, mon.X-2, fuelPercent, 100, fuelColor, colors.gray)
 
-      f.draw_text_lr(mon, 2, 19, 1, "Action ", action, colors.gray, colors.gray, colors.black)
       clear_line(19)
       f.draw_text_lr(mon, 2, 19, 1, "Action", action, colors.gray, colors.gray, colors.black)
 
@@ -337,7 +334,9 @@ function update()
         emergencyTemp = true
       end
 
-        sleep(0.1)
+      mon.monitor.setVisible(true)
+      mon.monitor.redraw()
+      sleep(0.3)
     end
   end
 
