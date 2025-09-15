@@ -5,6 +5,12 @@ local maxTemperature = 8000
 local safeTemperature = 3000
 local lowestFieldPercent = 15
 
+-- automatic input gate tuning
+local autoKpDivisor = 500
+local autoKiDivisor = 15000
+local autoStepMin = 1000
+local autoStepMax = 250000
+
 local activateOnCharged = 1
 
 -- please leave things untouched from here on
@@ -14,6 +20,8 @@ local version = "0.25"
 -- toggleable via the monitor, use our algorithm to achieve our target field strength or let the user tweak it
 local autoInputGate = 1
 local curInputGate = 222000
+local autoIntegral = 0
+local lastAutoFlow = curInputGate
 
 local mon, monitor, monX, monY
 
@@ -79,6 +87,7 @@ if fluxgate == nil then
         error("No valid flux gate was found")
 end
 
+
 if inputfluxgate == nil then
         error("No valid flux gate was found")
 end
@@ -103,6 +112,8 @@ function load_config()
   version = sr.readLine()
   autoInputGate = tonumber(sr.readLine())
   curInputGate = tonumber(sr.readLine())
+  lastAutoFlow = curInputGate
+  autoIntegral = 0
   sr.close()
 end
 
@@ -116,6 +127,7 @@ else
 end
 
 inputfluxgate.setSignalLowFlow(curInputGate)
+lastAutoFlow = curInputGate
 
 function buttons()
 
@@ -148,8 +160,12 @@ function buttons()
         if autoInputGate == 1 then
           autoInputGate = 0
           inputfluxgate.setSignalLowFlow(curInputGate)
+          lastAutoFlow = curInputGate
+          autoIntegral = 0
         else
           autoInputGate = 1
+          autoIntegral = 0
+          lastAutoFlow = inputfluxgate.getSignalLowFlow() or curInputGate
         end
         save_config()
       elseif autoInputGate == 0 then
@@ -169,6 +185,7 @@ function buttons()
         end
         curInputGate = cFlow
         inputfluxgate.setSignalLowFlow(curInputGate)
+        lastAutoFlow = curInputGate
         save_config()
       end
     end
@@ -193,7 +210,7 @@ end
 
 
 function update()
-  f.clear(mon)
+
   while true do
     local function clear_line(y)
       f.draw_line(mon, 1, y, mon.X, colors.black)
@@ -325,9 +342,75 @@ function update()
           local fluxval = ri.fieldDrainRate / (1 - (targetStrength / 100))
           print("Target Gate: " .. fluxval)
           inputfluxgate.setSignalLowFlow(fluxval)
+          local drain = math.max(ri.fieldDrainRate or 0, 0)
+          local targetEnergy = (ri.maxFieldStrength or 0) * (targetStrength / 100)
+          local currentField = ri.fieldStrength or 0
+          if targetEnergy <= 0 then
+            targetEnergy = currentField
+          end
+          local error = targetEnergy - currentField
+
+          autoIntegral = autoIntegral + error
+          local maxIntegral = (ri.maxFieldStrength or targetEnergy or 0) * 20
+          if maxIntegral ~= nil and maxIntegral > 0 then
+            if autoIntegral > maxIntegral then
+              autoIntegral = maxIntegral
+            elseif autoIntegral < -maxIntegral then
+              autoIntegral = -maxIntegral
+            end
+          end
+
+          local correction = 0
+          if autoKpDivisor > 0 then
+            correction = correction + (error / autoKpDivisor)
+          end
+          if autoKiDivisor > 0 then
+            correction = correction + (autoIntegral / autoKiDivisor)
+          end
+
+          local desiredFlow = drain + correction
+          if desiredFlow ~= desiredFlow or desiredFlow == nil then
+            desiredFlow = drain
+          end
+
+          local currentFlow = inputfluxgate.getSignalLowFlow() or 0
+          local stepLimit = autoStepMin
+          if drain > 0 then
+            stepLimit = math.max(stepLimit, drain * 0.5)
+          end
+          if autoStepMax > 0 then
+            stepLimit = math.min(stepLimit, autoStepMax)
+          end
+
+          local delta = desiredFlow - currentFlow
+          if stepLimit > 0 then
+            if delta > stepLimit then
+              desiredFlow = currentFlow + stepLimit
+            elseif delta < -stepLimit then
+              desiredFlow = currentFlow - stepLimit
+            end
+          end
+
+          if desiredFlow < 0 then
+            desiredFlow = 0
+            autoIntegral = 0
+          end
+
+          desiredFlow = math.floor(desiredFlow + 0.5)
+
+          if desiredFlow ~= lastAutoFlow then
+            print("Target Gate: " .. desiredFlow)
+            lastAutoFlow = desiredFlow
+          end
+
+          inputfluxgate.setSignalLowFlow(desiredFlow)
         else
           inputfluxgate.setSignalLowFlow(curInputGate)
+          lastAutoFlow = curInputGate
+          autoIntegral = 0
         end
+      else
+        autoIntegral = 0
       end
 
       -- safeguards
