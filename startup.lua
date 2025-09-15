@@ -5,11 +5,10 @@ local maxTemperature = 8000
 local safeTemperature = 3000
 local lowestFieldPercent = 15
 
--- automatic input gate tuning
-local autoKpDivisor = 500
-local autoKiDivisor = 15000
-local autoStepMin = 1000
-local autoStepMax = 250000
+local autoBalanceGain = 0.6 -- higher responds faster when field deviates from the target
+local autoStepMin = 1000 -- rf/t increase allowed even when drain is tiny
+local autoStepMax = 250000 -- rf/t maximum increase per update to avoid spikes
+local autoStepDownMax = 0 -- rf/t maximum decrease per update (0 disables the cap)
 
 local activateOnCharged = 1
 
@@ -20,7 +19,6 @@ local version = "0.25"
 -- toggleable via the monitor, use our algorithm to achieve our target field strength or let the user tweak it
 local autoInputGate = 1
 local curInputGate = 222000
-local autoIntegral = 0
 local lastAutoFlow = curInputGate
 
 local mon, monitor, monX, monY
@@ -199,6 +197,7 @@ function drawButtons(y)
   -- 17-19 = +1000, 21-23 = +10000, 25-27 = +100000
 
   f.draw_text(mon, 2, y, " < ", colors.white, colors.gray)
+  
   f.draw_text(mon, 6, y, " <<", colors.white, colors.gray)
   f.draw_text(mon, 10, y, "<<<", colors.white, colors.gray)
 
@@ -207,56 +206,98 @@ function drawButtons(y)
   f.draw_text(mon, 25, y, " > ", colors.white, colors.gray)
 end
 
+
+
 local function regulateInputGate(info)
+  if not info then
+    return
+  end
+
   local drain = math.max(info.fieldDrainRate or 0, 0)
-  local targetEnergy = (info.maxFieldStrength or 0) * (targetStrength / 100)
-  local currentField = info.fieldStrength or 0
+  local targetRatio = targetStrength / 100
 
-  if targetEnergy <= 0 then
-    targetEnergy = currentField
+  if targetRatio <= 0 then
+    targetRatio = 0.01
+  elseif targetRatio >= 1 then
+    targetRatio = 0.99
   end
 
-  local error = targetEnergy - currentField
+  local denom = 1 - targetRatio
+  local baseFlow = drain
 
-  autoIntegral = autoIntegral + error
-  local maxIntegral = (info.maxFieldStrength or targetEnergy or 0) * 20
-  if maxIntegral and maxIntegral > 0 then
-    if autoIntegral > maxIntegral then
-      autoIntegral = maxIntegral
-    elseif autoIntegral < -maxIntegral then
-      autoIntegral = -maxIntegral
+  if denom > 0 then
+    -- replicate the drmon ratio: keep the field at the target percentage by
+    -- compensating for the output drain scaled by the remaining headroom
+    baseFlow = drain / denom
+  end
+
+  local fieldRatio = 0
+  if info.maxFieldStrength and info.maxFieldStrength > 0 then
+    fieldRatio = (info.fieldStrength or 0) / info.maxFieldStrength
+  end
+
+  if fieldRatio ~= fieldRatio or fieldRatio == math.huge or fieldRatio == -math.huge then
+    fieldRatio = 0
+  end
+
+  if fieldRatio < 0 then
+    fieldRatio = 0
+  elseif fieldRatio > 1 then
+    fieldRatio = 1
+  end
+
+  local ratioError = targetRatio - fieldRatio
+  local proportional = 0
+
+  if autoBalanceGain ~= 0 then
+    proportional = baseFlow * ratioError * autoBalanceGain
+  end
+
+  if autoIntegralGain ~= 0 then
+    local integralStep = ratioError * baseFlow * autoIntegralGain
+    if integralStep ~= integralStep or integralStep == math.huge or integralStep == -math.huge then
+      integralStep = 0
     end
+    autoIntegral = autoIntegral + integralStep
+    if autoIntegralLimit > 0 then
+      if autoIntegral > autoIntegralLimit then
+        autoIntegral = autoIntegralLimit
+      elseif autoIntegral < -autoIntegralLimit then
+        autoIntegral = -autoIntegralLimit
+      end
+    end
+  else
+    autoIntegral = 0
   end
 
-  local correction = 0
-  if autoKpDivisor > 0 then
-    correction = correction + (error / autoKpDivisor)
-  end
-  if autoKiDivisor > 0 then
-    correction = correction + (autoIntegral / autoKiDivisor)
-  end
+  local desiredFlow = baseFlow + proportional + autoIntegral
 
-  local desiredFlow = drain + correction
-  if desiredFlow ~= desiredFlow or desiredFlow == nil then
+  if desiredFlow ~= desiredFlow or desiredFlow == math.huge or desiredFlow == -math.huge then
     desiredFlow = drain
+    autoIntegral = 0
   end
 
   local currentFlow = inputfluxgate.getSignalLowFlow() or 0
-  local stepLimit = autoStepMin
+  local delta = desiredFlow - currentFlow
+
+  local stepUpLimit = autoStepMin
 
   if drain > 0 then
-    stepLimit = math.max(stepLimit, drain * 0.5)
-  end
-  if autoStepMax > 0 then
-    stepLimit = math.min(stepLimit, autoStepMax)
+    stepUpLimit = math.max(stepUpLimit, drain * 0.25)
   end
 
-  local delta = desiredFlow - currentFlow
-  if stepLimit > 0 then
-    if delta > stepLimit then
-      desiredFlow = currentFlow + stepLimit
-    elseif delta < -stepLimit then
-      desiredFlow = currentFlow - stepLimit
+  if autoStepMax > 0 then
+    stepUpLimit = math.min(stepUpLimit, autoStepMax)
+  end
+
+  if delta > 0 and stepUpLimit > 0 then
+    if delta > stepUpLimit then
+      desiredFlow = currentFlow + stepUpLimit
+    end
+  elseif delta < 0 and autoStepDownMax > 0 then
+    local stepDownLimit = autoStepDownMax
+    if -delta > stepDownLimit then
+      desiredFlow = currentFlow - stepDownLimit
     end
   end
 
@@ -382,7 +423,7 @@ function update()
       --
       if emergencyCharge == true then
         reactor.chargeReactor()
-      end
+     end
 
       -- are we charging? open the floodgates
       if ri.status == "charging" then
@@ -405,11 +446,11 @@ function update()
       -- or set it to our saved setting since we are on manual
       if ri.status == "online" then
         if autoInputGate == 1 then
-         regulateInputGate(ri)
+          regulateInputGate(ri)
         else
+          autoIntegral = 0
           inputfluxgate.setSignalLowFlow(curInputGate)
           lastAutoFlow = curInputGate
-          autoIntegral = 0
         end
       else
         autoIntegral = 0
