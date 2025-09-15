@@ -477,6 +477,8 @@ function update()
         action = "Temp > " .. maxTemperature
         emergencyTemp = true
      end
+        mon.monitor.setVisible(true)
+    os.sleep(0)
     end
   end
 
