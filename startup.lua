@@ -285,7 +285,7 @@ function update()
 
       fuelColor = colors.red
 
-      if fuelPercent >= 70 then fuelColor = colors green end
+      if fuelPercent >= 70 then fuelColor = colors.green end
       if fuelPercent < 70 and fuelPercent > 30 then fuelColor = colors.orange end
 
       clear_line(17)
