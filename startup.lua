@@ -17,13 +17,36 @@ local version = "0.25"
 local autoInputGate = 1
 local curInputGate = 222000
 
--- monitor 
+-- monitor
 local mon, monitor, monX, monY
 
 -- peripherals
 local reactor
 local fluxgate
 local inputfluxgate
+
+-- allow user to pick which flux gates to use
+local function chooseFluxGate(prompt, exclude)
+  local gates = {}
+  for _, name in pairs(peripheral.getNames()) do
+    if peripheral.getType(name) == "flux_gate" and name ~= exclude then
+      table.insert(gates, name)
+    end
+  end
+  if #gates == 0 then
+    return null, null
+  end
+  print(prompt)
+  for i, n in ipairs(gates) do
+    print(i .. ": " .. n)
+  end
+  local choice
+  repeat
+    write("> ")
+    choice = tonumber(read())
+  until choice ~= null and gates[choice] ~= null
+  return peripheral.wrap(gates[choice]), gates[choice]
+end
 
 -- reactor information
 local ri
@@ -34,24 +57,24 @@ local emergencyCharge = false
 local emergencyTemp = false
 
 monitor = f.periphSearch("monitor")
-inputfluxgate = f.periphSearch("flux_gate")
-fluxgate = peripheral.wrap(fluxgateSide)
+fluxgate, fluxgateSide = chooseFluxGate("Select output flux gate:")
+inputfluxgate = chooseFluxGate("Select input flux gate:", fluxgateSide)
 reactor = peripheral.wrap(reactorSide)
 
 if monitor == null then
-	error("No valid monitor was found")
+        error("No valid monitor was found")
 end
 
 if fluxgate == null then
-	error("No valid fluxgate was found")
+        error("No valid fluxgate was found")
 end
 
 if reactor == null then
-	error("No valid reactor was found")
+        error("No valid reactor was found")
 end
 
 if inputfluxgate == null then
-	error("No valid flux gate was found")
+        error("No valid flux gate was found")
 end
 
 monX, monY = monitor.getSize()
@@ -60,7 +83,7 @@ mon.monitor,mon.X, mon.Y = monitor, monX, monY
 
 --write settings to config file
 function save_config()
-  sw = fs.open("config.txt", "w")   
+  sw = fs.open("config.txt", "w")
   sw.writeLine(version)
   sw.writeLine(autoInputGate)
   sw.writeLine(curInputGate)
@@ -82,6 +105,21 @@ if fs.exists("config.txt") == false then
   save_config()
 else
   load_config()
+end
+
+print("Set initial output gate rf/t (blank to keep)")
+local initOut = read()
+initOut = tonumber(initOut)
+if initOut ~= null then
+  fluxgate.setSignalLowFlow(initOut)
+end
+print("Set initial input gate rf/t (blank to keep)")
+local initIn = read()
+initIn = tonumber(initIn)
+if initIn ~= null then
+  curInputGate = initIn
+  inputfluxgate.setSignalLowFlow(curInputGate)
+  save_config()
 end
 
 function buttons()
@@ -160,9 +198,8 @@ function drawButtons(y)
 end
 
 
-
 function update()
-  while true do 
+  while true do
 
     f.clear(mon)
 
@@ -229,7 +266,7 @@ function update()
     if fieldPercent >= 50 then fieldColor = colors.green end
     if fieldPercent < 50 and fieldPercent > 30 then fieldColor = colors.orange end
 
-    if autoInputGate == 1 then 
+    if autoInputGate == 1 then
       f.draw_text_lr(mon, 2, 14, 1, "Field Strength T:" .. targetStrength, fieldPercent .. "%", colors.white, fieldColor, colors.black)
     else
       f.draw_text_lr(mon, 2, 14, 1, "Field Strength", fieldPercent .. "%", colors.white, fieldColor, colors.black)
@@ -249,13 +286,12 @@ function update()
     f.progress_bar(mon, 2, 18, mon.X-2, fuelPercent, 100, fuelColor, colors.gray)
 
     f.draw_text_lr(mon, 2, 19, 1, "Action ", action, colors.gray, colors.gray, colors.black)
-
     -- actual reactor interaction
     --
     if emergencyCharge == true then
       reactor.chargeReactor()
     end
-    
+
     -- are we charging? open the floodgates
     if ri.status == "charging" then
       inputfluxgate.setSignalLowFlow(900000)
@@ -276,7 +312,7 @@ function update()
     -- are we on? regulate the input fludgate to our target field strength
     -- or set it to our saved setting since we are on manual
     if ri.status == "online" then
-      if autoInputGate == 1 then 
+      if autoInputGate == 1 then
         fluxval = ri.fieldDrainRate / (1 - (targetStrength/100) )
         print("Target Gate: ".. fluxval)
         inputfluxgate.setSignalLowFlow(fluxval)
@@ -287,7 +323,7 @@ function update()
 
     -- safeguards
     --
-    
+
     -- out of fuel, kill it
     if fuelPercent <= 10 then
       reactor.stopReactor()
