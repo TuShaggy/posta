@@ -171,15 +171,12 @@ end
 
 function update()
   while true do
-  local function clear_line(y)
-    f.draw_line(mon, 1, y, mon.X, colors.black)
-  end
+    local function clear_line(y)
+      f.draw_line(mon, 1, y, mon.X, colors.black)
+    end
 
-      f.clear(mon)
-  function update()
     f.clear(mon)
     drawButtons(8)
-    while true do
 
       ri = reactor.getReactorInfo()
 
@@ -190,7 +187,7 @@ function update()
       end
 
       for k, v in pairs (ri) do
-        print(k.. ": ".. v)
+        print(k.. ": " .. v)
       end
       print("Output Gate: ", fluxgate.getSignalLowFlow())
       print("Input Gate: ", inputfluxgate.getSignalLowFlow())
@@ -251,7 +248,6 @@ function update()
       if fieldPercent >= 50 then fieldColor = colors.green end
       if fieldPercent < 50 and fieldPercent > 30 then fieldColor = colors.orange end
 
-      if autoInputGate == 1 then
       clear_line(14)
       if autoInputGate == 1 then
         f.draw_text_lr(mon, 2, 14, 1, "Field Strength T:" .. targetStrength, fieldPercent .. "%", colors.white, fieldColor, colors.black)
@@ -342,9 +338,8 @@ function update()
         emergencyTemp = true
       end
 
-      sleep(0.1)
+        sleep(0.1)
     end
   end
-end
 
 parallel.waitForAny(buttons, update)
