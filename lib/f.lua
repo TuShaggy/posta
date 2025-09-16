@@ -1,92 +1,81 @@
--- peripheral identification
---
-function periphSearch(type)
-   local names = peripheral.getNames()
-   local i, name
-   for i, name in pairs(names) do
-      if peripheral.getType(name) == type then
-         return peripheral.wrap(name)
-      end
-   end
-   return nil
+-- lib/f.lua — helpers UI (barras en color)
+
+local f = {}
+
+-- Intenta cargar temas si existen; si no, usa defaults
+local THEMES = { minimalist = { bg = colors.black, fg = colors.white, accent = colors.orange } }
+do
+  local ok, t = pcall(dofile, "themes.lua")
+  if ok and type(t) == "table" then THEMES = t end
 end
 
--- formatting
-
-function format_int(number)
-
-        if number == nil then number = 0 end
-
-  local i, j, minus, int, fraction = tostring(number):find('([-]?)(%d+)([.]?%d*)')
-  -- reverse the int-string and append a comma to all blocks of 3 digits
-  int = int:reverse():gsub("(%d%d%d)", "%1,")
-
-  -- reverse the int-string back remove an optional comma and put the
-  -- optional minus and fractional part back
-  return minus .. int:reverse():gsub("^,", "") .. fraction
+-- Busca tema o usa default
+local function getTheme(name)
+  return (name and THEMES[name]) or THEMES.minimalist
 end
 
--- monitor related
-
---display text text on monitor, "mon" peripheral
-function draw_text(mon, x, y, text, text_color, bg_color)
-  mon.monitor.setBackgroundColor(bg_color)
-  mon.monitor.setTextColor(text_color)
-  mon.monitor.setCursorPos(x,y)
-  mon.monitor.write(text)
+-- Limpia pantalla con colores de tema
+function f.clear(mon, themeName)
+  mon = mon or term
+  local t = getTheme(themeName)
+  mon.setBackgroundColor(t.bg or colors.black)
+  mon.setTextColor(t.fg or colors.white)
+  mon.clear()
+  mon.setCursorPos(1,1)
 end
 
-function draw_text_right(mon, offset, y, text, text_color, bg_color)
-  mon.monitor.setBackgroundColor(bg_color)
-  mon.monitor.setTextColor(text_color)
-  mon.monitor.setCursorPos(mon.X-string.len(tostring(text))-offset,y)
-  mon.monitor.write(text)
+-- Centrar texto
+function f.center(mon, y, text, themeName)
+  mon = mon or term
+  local w = mon.getSize()
+  local t = getTheme(themeName)
+  mon.setTextColor(t.fg or colors.white)
+  mon.setCursorPos(math.floor((w - #tostring(text))/2)+1, y)
+  mon.write(tostring(text))
 end
 
-function draw_text_lr(mon, x, y, offset, text1, text2, text1_color, text2_color, bg_color)
-        draw_text(mon, x, y, text1, text1_color, bg_color)
-        draw_text_right(mon, offset, y, text2, text2_color, bg_color)
-end
+-- Barra horizontal de color usando espacios (no símbolos raros)
+-- colorFill/bg opcionales; si no se dan, usa el tema.
+function f.hbar(mon, x, y, w, h, value, max, colorFill, colorBg, themeName)
+  mon = mon or term
+  local t = getTheme(themeName)
+  local fill = math.floor(math.min(1, math.max(0, (value or 0)/(max or 1))) * w)
+  local oldBg = t.bg or colors.black
 
---draw line on computer terminal
-function draw_line(mon, x, y, length, color)
-    if length < 0 then
-      length = 0
+  local fillCol = colorFill or t.accent or colors.orange
+  local bgCol   = colorBg   or t.bg     or colors.black
+
+  for row = 0, (h or 1)-1 do
+    mon.setCursorPos(x, y + row)
+    mon.setBackgroundColor(fillCol)
+    if fill > 0 then mon.write(string.rep(" ", fill)) end
+    if fill < w then
+      mon.setBackgroundColor(bgCol)
+      mon.write(string.rep(" ", w - fill))
     end
-    mon.monitor.setBackgroundColor(color)
-    mon.monitor.setCursorPos(x,y)
-    mon.monitor.write(string.rep(" ", length))
-end
-
---create progress bar
---draws two overlapping lines
---background line of bg_color
---main line of bar_color as a percentage of minVal/maxVal
-function progress_bar(mon, x, y, length, minVal, maxVal, bar_color, bg_color)
-  draw_line(mon, x, y, length, bg_color) --backgoround bar
-  local barSize = math.floor((minVal/maxVal) * length)
-  draw_line(mon, x, y, barSize, bar_color) --progress so far
-end
-
-
-function clear(mon)
-
-  mon.monitor.setBackgroundColor(colors.black)
-  mon.monitor.clear()
-  mon.monitor.setCursorPos(1,1)
-end
--- set text scale so the monitor is at least minX by minY, then return centered window
-function init_monitor(periph, minX, minY)
-  local scale = 5
-  local w, h
-  while scale >= 0.5 do
-    periph.setTextScale(scale)
-    w, h = periph.getSize()
-    if w >= minX and h >= minY then break end
-    scale = scale - 0.5
   end
-  local xOff = math.floor((w - minX) / 2)
-  local yOff = math.floor((h - minY) / 2)
-  local win = window.create(periph, xOff + 1, yOff + 1, minX, minY)
-  return {monitor = win, X = minX, Y = minY}
+  mon.setBackgroundColor(oldBg)
 end
+
+-- Botón rectangular simple
+function f.button(mon, x1, y1, x2, y2, label, themeName)
+  mon = mon or term
+  local t = getTheme(themeName)
+  mon.setBackgroundColor(t.bg)
+  mon.setTextColor(t.fg)
+  -- fondo del botón
+  mon.setBackgroundColor(t.accent or colors.orange)
+  for y = y1, y2 do
+    mon.setCursorPos(x1, y)
+    mon.write(string.rep(" ", x2 - x1 + 1))
+  end
+  -- etiqueta centrada
+  local cx = x1 + math.floor((x2 - x1 - #label)/2)
+  local cy = y1 + math.floor((y2 - y1)/2)
+  mon.setTextColor(t.fg or colors.white)
+  mon.setCursorPos(math.max(x1, cx), math.max(y1, cy))
+  mon.write(label)
+  mon.setBackgroundColor(t.bg)
+end
+
+return f
